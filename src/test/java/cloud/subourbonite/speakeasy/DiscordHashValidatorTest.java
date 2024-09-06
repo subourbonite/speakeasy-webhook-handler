@@ -14,8 +14,10 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
 import software.pando.crypto.nacl.Crypto;
 
 import java.util.Map;
-import java.util.Date;
-import java.util.HexFormat;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.KeyPair;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -24,43 +26,19 @@ class DiscordHashValidatorTest {
     KeyPair keyPair = Crypto.signingKeyPair();
 
     @Test
-    void testSignatureValidation() {
+    void testSignatureValidation() throws IOException, URISyntaxException {
         DiscordHashValidator validator = new DiscordHashValidator("", "",
-                HexFormat.of().formatHex(keyPair.getPublic().getEncoded()));
+                "7d36900458a5bdcc92dbcb5a17fd1099bed501d6454c2b694d5c033139ece1ad");
 
-        Long timestamp = new Date().getTime();
-
-        String body = "{\r\n" + //
-                "    \"app_permissions\": \"562949953601536\",\r\n" + //
-                "    \"application_id\": \"1276733792542916608\",\r\n" + //
-                "    \"authorizing_integration_owners\": {},\r\n" + //
-                "    \"entitlements\": [],\r\n" + //
-                "    \"id\": \"1281449795176628325\",\r\n" + //
-                "    \"token\": \"aW50ZXJhY3Rpb246MTI4MTQ0OTc5NTE3NjYyODMyNTprSTJXNG9Rd0FSQ0hQbGxBRDJLSFA0V2s1TjRJbjhKa1plUjQ0T1F2aFd4MEVybmdWT1cyNnc4NFJLcllCR1NGcFVDbG9VQjZhWnBuZHNZeVE3V0g1cGZhTThlM3lkaHhScDVnOW5jeTlXd0hMd0puRTRQNUxlaUQ3ak9TRGt2cQ\",\r\n"
-                + //
-                "    \"type\": 1,\r\n" + //
-                "    \"user\": {\r\n" + //
-                "        \"avatar\": \"c6a249645d46209f337279cd2ca998c7\",\r\n" + //
-                "        \"avatar_decoration_data\": null,\r\n" + //
-                "        \"bot\": true,\r\n" + //
-                "        \"clan\": null,\r\n" + //
-                "        \"discriminator\": \"0000\",\r\n" + //
-                "        \"global_name\": \"Discord\",\r\n" + //
-                "        \"id\": \"643945264868098049\",\r\n" + //
-                "        \"public_flags\": 1,\r\n" + //
-                "        \"system\": true,\r\n" + //
-                "        \"username\": \"discord\"\r\n" + //
-                "    },\r\n" + //
-                "    \"version\": 1\r\n" + //
-                "}";
+        String body = Files.readString(Paths.get(Thread.currentThread().getContextClassLoader()
+                .getResource("DiscordHashValidationPayload.json").toURI()));
 
         APIGatewayV2HTTPResponse response = validator.handleRequest(
                 APIGatewayV2HTTPEvent.builder()
                         .withBody(body)
-                        .withHeaders(Map.of("x-signature-timestamp", timestamp.toString(), "x-signature-ed25519",
-                                HexFormat.of()
-                                        .formatHex(Crypto.sign(keyPair.getPrivate(),
-                                                (timestamp.toString() + body).getBytes()))))
+                        .withIsBase64Encoded(true)
+                        .withHeaders(Map.of("x-signature-timestamp", "1725595486", "x-signature-ed25519",
+                                "deb413186162d80ded5ab181ab0f57e7c6519e2355dcef7e1cd5a29dde3da4af705ec88134337968c4c3125e63def094bc2ae6c6b497439f48557da158ce0c05"))
                         .build(),
                 new Context() {
                     @Override
@@ -141,6 +119,6 @@ class DiscordHashValidatorTest {
                 });
 
         assertEquals(200, response.getStatusCode());
-        assertEquals(response.getBody(), "{ \"type\": 1 }");
+        assertEquals("{ \"type\": 1 }", response.getBody());
     }
 }

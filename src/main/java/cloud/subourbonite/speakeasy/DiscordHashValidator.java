@@ -1,6 +1,7 @@
 package cloud.subourbonite.speakeasy;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.HexFormat;
 
 import com.amazonaws.services.lambda.runtime.Context;
@@ -28,18 +29,27 @@ public class DiscordHashValidator implements RequestHandler<APIGatewayV2HTTPEven
     @Override
     public APIGatewayV2HTTPResponse handleRequest(APIGatewayV2HTTPEvent input, Context context) {
         context.getLogger().log("Input: " + input);
-
+        context.getLogger().log(Base64.getEncoder().encodeToString(input.getBody().getBytes(StandardCharsets.UTF_8)));
+        
         if (verifySignature(input, discordPublicKey)) {
             return APIGatewayV2HTTPResponse.builder().withBody("{ \"type\": 1 }").withStatusCode(200).build();
         } else {
-            return APIGatewayV2HTTPResponse.builder().withBody("{ \"type\": 1 }").withStatusCode(401).build();
+            return APIGatewayV2HTTPResponse.builder().withStatusCode(401).build();
         }
     }
 
     public boolean verifySignature(APIGatewayV2HTTPEvent input, String key) {
+        String body;
+            
+        if(input.getIsBase64Encoded()) {
+            body = new String(Base64.getDecoder().decode(input.getBody()), StandardCharsets.UTF_8);
+        } else {
+            body = input.getBody();
+        }
+
         return Crypto.signVerify(
                 Crypto.signingPublicKey(HexFormat.of().parseHex(key)),
-                (input.getHeaders().get("x-signature-timestamp") + input.getBody()).getBytes(StandardCharsets.UTF_8),
+                (input.getHeaders().get("x-signature-timestamp") + body).getBytes(StandardCharsets.UTF_8),
                 HexFormat.of().parseHex(input.getHeaders().get("x-signature-ed25519")));
     }
 }
