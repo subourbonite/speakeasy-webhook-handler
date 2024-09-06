@@ -29,7 +29,6 @@ public class DiscordHashValidator implements RequestHandler<APIGatewayV2HTTPEven
     @Override
     public APIGatewayV2HTTPResponse handleRequest(APIGatewayV2HTTPEvent input, Context context) {
         context.getLogger().log("Input: " + input);
-        context.getLogger().log(Base64.getEncoder().encodeToString(input.getBody().getBytes(StandardCharsets.UTF_8)));
         
         if (verifySignature(input, discordPublicKey)) {
             return APIGatewayV2HTTPResponse.builder().withBody("{ \"type\": 1 }").withStatusCode(200).build();
